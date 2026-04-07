@@ -1,0 +1,1 @@
+python -m MOT.run --input data/pbl/ --output outputs/ --with-reid --save-vid --model yolo26l.pt --eval-saliency
