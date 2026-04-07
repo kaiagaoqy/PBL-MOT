@@ -77,6 +77,21 @@ Examples:
         "(default: outputs)",
     )
     parser.add_argument(
+        "--tasks",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Only process specific task numbers. E.g., --tasks 7 8 9 10 11 "
+        "keeps only videos matching Task7_*, Task8_*, etc. "
+        "(default: all tasks)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-run tracking even if tracking_results.txt already exists. "
+        "Without this flag, videos with existing results are skipped.",
+    )
+    parser.add_argument(
         "--model",
         type=str,
         default="yolo26l.pt",
@@ -368,8 +383,10 @@ def main() -> None:
 
     # Discover videos
     print(f"Discovering videos in: {args.input}")
+    if args.tasks:
+        print(f"Filtering tasks: {args.tasks}")
     try:
-        video_paths = discover_videos(args.input)
+        video_paths = discover_videos(args.input, tasks=args.tasks)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -436,12 +453,21 @@ def main() -> None:
         "workers": num_workers,
     }
 
-    # Prepare video jobs: (global_index, video_path, output_dir)
+    # Prepare video jobs, skip already-completed unless --force
     video_jobs = []
+    skipped = 0
     for i, vpath in enumerate(video_paths, 1):
         video_output_dir = compute_output_dir(vpath, args.input, args.output)
+        results_file = os.path.join(video_output_dir, "tracking_results.txt")
+        if not args.force and os.path.isfile(results_file):
+            skipped += 1
+            continue
         video_jobs.append((i, vpath, video_output_dir))
 
+    if skipped > 0:
+        print(f"Skipped {skipped} video(s) with existing results (use --force to re-run)")
+    if not video_jobs:
+        print("All videos already processed. Nothing to do.")
     total_label = f"{len(video_jobs)} video(s)"
 
     # === Execute ===

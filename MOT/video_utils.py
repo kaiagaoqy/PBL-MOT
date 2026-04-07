@@ -6,6 +6,7 @@ that mirror the input directory structure.
 """
 
 import os
+import re
 from pathlib import Path
 
 import cv2
@@ -13,7 +14,9 @@ import cv2
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"}
 
 
-def discover_videos(input_path: str) -> list[str]:
+def discover_videos(
+    input_path: str, tasks: list[int] | None = None
+) -> list[str]:
     """Find video files from a file path or directory (recursive).
 
     If input_path is a file, returns it as a single-element list.
@@ -23,6 +26,10 @@ def discover_videos(input_path: str) -> list[str]:
     Args:
         input_path: Path to a single video file or directory tree
             containing videos.
+        tasks: Optional list of task numbers to filter by. Only videos
+            whose filename matches Task{N}_* where N is in this list
+            will be included. E.g., [7, 8, 9] keeps only Task7_*, Task8_*, Task9_*.
+            None means no filtering (all videos).
 
     Returns:
         Sorted list of absolute video file paths.
@@ -42,6 +49,10 @@ def discover_videos(input_path: str) -> list[str]:
     for root, _dirs, files in os.walk(input_path):
         for f in files:
             if os.path.splitext(f)[1].lower() in VIDEO_EXTENSIONS:
+                if tasks is not None:
+                    match = re.match(r"Task(\d+)", f)
+                    if not match or int(match.group(1)) not in tasks:
+                        continue
                 videos.append(os.path.join(root, f))
 
     return sorted(videos)
